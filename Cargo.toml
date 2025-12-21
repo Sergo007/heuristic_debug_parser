@@ -1,6 +1,6 @@
 [package]
 description = "Parse the output of `std::fmt::Debug`"
-edition = "2018"
+edition = "2021"
 license = "MIT/Apache-2.0"
 name = "heuristic_debug_parser"
 readme = "README.md"
