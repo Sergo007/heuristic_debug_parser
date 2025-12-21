@@ -3,7 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{alpha1, alphanumeric1, multispace0, none_of},
-    combinator::{map, recognize},
+    combinator::{map, opt, recognize},
     error::{Error, ParseError},
     multi::{many0_count, many1, separated_list0},
     sequence::{delimited, pair, separated_pair},
@@ -297,8 +297,11 @@ impl fmt::Debug for KeyValue {
 fn parse_ident(input: &str) -> IResult<&str, String> {
     // https://docs.rs/nom/latest/nom/recipes/index.html#rust-style-identifiers
     recognize(pair(
-        alt((alpha1, tag("_"))),
-        many0_count(alt((alphanumeric1, tag("_")))),
+        opt(tag("r#")),
+        pair(
+            alt((alpha1, tag("_"))),
+            many0_count(alt((alphanumeric1, tag("_")))),
+        ),
     ))(input)
     .map(|(rest, matched)| (rest, matched.to_string()))
 }
@@ -386,6 +389,7 @@ mod tests {
     #[test]
     fn object_tuples() {
         #[derive(Debug)]
+        #[allow(unused)]
         struct Foo(&'static str, u32, f32);
 
         assert_same_debug(&Foo("Foo", 32, -12.0));
@@ -592,6 +596,21 @@ mod tests {
             map.insert(RawString("2022-10-5"), "foo");
             map.insert(RawString("2019-4-12"), "foo");
             map
+        };
+        assert_same_debug(&item);
+    }
+
+    #[test]
+    fn rust_key_words_in_struct_fields() {
+        #[derive(Debug)]
+        #[allow(unused)]
+        struct Foo {
+            r#type: String,
+            r#struct: i64,
+        }
+        let item = Foo {
+            r#type: "r#y_type_value".to_string(),
+            r#struct: 12,
         };
         assert_same_debug(&item);
     }
