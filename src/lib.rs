@@ -67,7 +67,8 @@ impl Parse for Value {
             (List::parse).map(Value::List),
             (Tuple::parse).map(Value::Tuple),
             (Term::parse).map(Value::Term),
-        ))(input)
+        ))
+        .parse(input)
     }
 }
 
@@ -103,7 +104,8 @@ impl Term {
             map(many1(none_of(":, {}[]()")), |c| {
                 Term::UnquotedRawString(c.into_iter().collect())
             }),
-        ))(input)
+        ))
+        .parse(input)
     }
 }
 
@@ -138,7 +140,8 @@ impl<T: Parse> Parse for OrNonExhaustive<T> {
         alt((
             map(T::parse, Self::Value),
             map(tag(".."), |_| Self::NonExhaustive),
-        ))(input)
+        ))
+        .parse(input)
     }
 }
 
@@ -199,7 +202,8 @@ pub struct IdentValue {
 impl Parse for IdentValue {
     fn parse(input: &str) -> IResult<&str, Self> {
         let input = consume_ws(input);
-        let (rest, (ident, value)) = separated_pair(parse_ident, tag(":"), Value::parse)(input)?;
+        let (rest, (ident, value)) =
+            separated_pair(parse_ident, tag(":"), Value::parse).parse(input)?;
         Ok((rest, IdentValue { ident, value }))
     }
 }
@@ -281,7 +285,8 @@ pub struct KeyValue {
 
 impl Parse for KeyValue {
     fn parse(input: &str) -> IResult<&str, Self> {
-        separated_pair(ws(Value::parse), ws(tag(":")), ws(Value::parse))(input)
+        separated_pair(ws(Value::parse), ws(tag(":")), ws(Value::parse))
+            .parse(input)
             .map(|(rest, (key, value))| (rest, KeyValue { key, value }))
     }
 }
@@ -302,7 +307,8 @@ fn parse_ident(input: &str) -> IResult<&str, String> {
             alt((alpha1, tag("_"))),
             many0_count(alt((alphanumeric1, tag("_")))),
         ),
-    ))(input)
+    ))
+    .parse(input)
     .map(|(rest, matched)| (rest, matched.to_string()))
 }
 
@@ -318,9 +324,7 @@ fn consume_ws(input: &str) -> &str {
 
 /// A combinator that takes a parser `inner` and produces a parser that also consumes both leading and
 /// trailing whitespace, returning the output of `inner`.
-fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
-    inner: F,
-) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(inner: F) -> impl Parser<&'a str, Output = O, Error = E>
 where
     F: Fn(&'a str) -> IResult<&'a str, O, E>,
 {
@@ -328,7 +332,7 @@ where
 }
 
 fn parse_comma_separated<T: Parse>(input: &str) -> Result<(&str, Vec<T>), nom::Err<Error<&str>>> {
-    separated_list0(tag(","), T::parse)(consume_ws(input))
+    separated_list0(tag(","), T::parse).parse(consume_ws(input))
 }
 
 fn parse_comma_separated_wrapped<'a, T: Parse>(
@@ -340,7 +344,8 @@ fn parse_comma_separated_wrapped<'a, T: Parse>(
         ws(tag(begin_wrap)),
         parse_comma_separated,
         ws(tag(end_wrap)),
-    )(input)
+    )
+    .parse(input)
 }
 
 #[cfg(test)]
